@@ -30,10 +30,6 @@ puts "Matching type: #{matching_type}"
 rows = CSV.read(file_path, headers: true)
 headers = rows.headers
 
-puts "Headers: #{headers.inspect}"
-puts "Rows: #{rows.inspect}"
-puts "Number of rows: #{rows.size}"
-
 CSV.open(output_file, 'w') do |csv|
   csv << ['GroupId'] + headers
   rows.each_with_index do |row, index|
