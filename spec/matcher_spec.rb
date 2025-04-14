@@ -3,100 +3,51 @@ require 'spec_helper'
 require_relative '../lib/matcher'
 
 describe Matcher do
-  context 'when it has a single email column and single phone column' do
-    let(:headers) { %w[FirstName LastName Email Phone Zip] }
-    let(:row1) do
+  context 'get_keys' do
+    let(:headers) { %w[Name Email1 Email2 Phone1 Phone2] }
+    let(:row) do
       {
-        'Email' => 'test@example.com',
-        'Phone' => '123-456-7890'
-      }
-    end
-
-    let(:row2) do
-      {
-        'Email' => 'test2@example.com',
-        'Phone' => '+1-123-456-7890'
-      }
-    end
-
-    let(:row3) do
-      {
-        'Email' => 'test2@example.com',
-        'Phone' => '123-456-7891'
-      }
-    end
-
-    it 'matches by email' do
-      matcher = Matcher.new('email', headers)
-      expect(matcher.match?(row1, row2)).to be false
-      expect(matcher.match?(row1, row3)).to be false
-      expect(matcher.match?(row2, row3)).to be true
-    end
-
-    it 'matches by phone' do
-      matcher = Matcher.new('phone', headers)
-      expect(matcher.match?(row1, row2)).to be true
-      expect(matcher.match?(row1, row3)).to be false
-      expect(matcher.match?(row2, row3)).to be false
-    end
-
-    it 'matches by email_or_phone' do
-      matcher = Matcher.new('email_or_phone', headers)
-      expect(matcher.match?(row1, row2)).to be true
-      expect(matcher.match?(row1, row3)).to be false
-      expect(matcher.match?(row2, row3)).to be true
-    end
-  end
-
-  context 'when it has multiple email and phone columns' do
-    let(:headers) { %w[FirstName LastName Email1 Email2 Phone1 Phone2 Zip] }
-
-    let(:row1) do
-      {
-        'Email1' => 'test@example.com',
+        'Name' => 'Alice',
+        'Email1' => 'a.b@test.com',
         'Email2' => '',
         'Phone1' => '123-456-7890',
-        'Phone2' => ''
+        'Phone2' => '987-654-3210'
       }
     end
-
-    let(:row2) do
-      {
-        'Email1' => '',
-        'Email2' => 'TEST@example.com',
-        'Phone1' => '',
-        'Phone2' => '(123) 456-7890'
-      }
-    end
-
-    let(:row3) do
-      {
-        'Email1' => 'different@example.com',
-        'Email2' => '',
-        'Phone1' => '999-999-9999',
-        'Phone2' => ''
-      }
-    end
-
-    it 'matches by email using multiple email columns' do
+    it 'returns email keys for email match type' do
       matcher = Matcher.new('email', headers)
-      expect(matcher.match?(row1, row2)).to be true
-      expect(matcher.match?(row1, row3)).to be false
-      expect(matcher.match?(row2, row3)).to be false
+      keys = matcher.get_keys(row)
+      expect(keys).to eq(['a.b@test.com'])
     end
 
-    it 'matches by phone using multiple phone columns' do
+    it 'returns phone keys for phone match type' do
       matcher = Matcher.new('phone', headers)
-      expect(matcher.match?(row1, row2)).to be true
-      expect(matcher.match?(row1, row3)).to be false
-      expect(matcher.match?(row2, row3)).to be false
+      keys = matcher.get_keys(row)
+      expect(keys).to eq(%w[1234567890 9876543210])
     end
 
-    it 'matches by email_or_phone using either' do
+    it 'returns both email and phone keys for email_or_phone match type' do
       matcher = Matcher.new('email_or_phone', headers)
-      expect(matcher.match?(row1, row2)).to be true
-      expect(matcher.match?(row1, row3)).to be false
-      expect(matcher.match?(row2, row3)).to be false
+      keys = matcher.get_keys(row)
+      expect(keys).to eq(['a.b@test.com', '1234567890', '9876543210'])
+    end
+
+    it 'raises an error for invalid match type' do
+      matcher = Matcher.new('invalid_type', headers)
+      expect { matcher.get_keys(row) }.to raise_error(ArgumentError, 'Invalid match type: invalid_type')
+    end
+
+    it 'handles rows with missing or empty values' do
+      row_with_missing_values = {
+        'Name' => 'Bob',
+        'Email1' => '',
+        'Email2' => nil,
+        'Phone1' => '555-555-5555',
+        'Phone2' => nil
+      }
+      matcher = Matcher.new('email_or_phone', headers)
+      keys = matcher.get_keys(row_with_missing_values)
+      expect(keys).to eq(['5555555555'])
     end
   end
 end

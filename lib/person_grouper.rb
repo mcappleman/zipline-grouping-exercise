@@ -1,5 +1,4 @@
 require 'csv'
-require 'pry'
 require_relative './matcher'
 
 class PersonGrouper
@@ -13,8 +12,10 @@ class PersonGrouper
 
   def group_and_output
     load_rows
+    @matcher = Matcher.new(@match_type, @headers)
     build_key_graph
-    binding.pry
+    assign_person_ids
+    write_output
   end
 
   private
@@ -26,19 +27,63 @@ class PersonGrouper
   end
 
   def build_key_graph
-    matcher = Matcher.new(@match_type)
+    @rows.map do |i, row|
+      keys = @matcher.get_keys(row)
+      keys.each do |key|
+        @key_graph[key] ||= new_node
+        keys.each do |other_key|
+          next if key == other_key
 
-    @rows.each do |i, i_row|
-      @rows.each do |j, j_row|
-        next if i >= j
-
-        next unless matcher.match?(i_row, j_row)
-
-        @key_graph[i] ||= []
-        @key_graph[i] << j
-        @key_graph[j] ||= []
-        @key_graph[j] << i
+          update_edges(key, other_key)
+        end
       end
+    end
+  end
+
+  def update_edges(key, other_key)
+    @key_graph[key][:edges] << other_key unless @key_graph[key][:edges].include?(other_key)
+    @key_graph[other_key] ||= new_node
+    @key_graph[other_key][:edges] << key unless @key_graph[other_key][:edges].include?(key)
+  end
+
+  def new_node
+    {
+      edges: [],
+      person_id: nil
+    }
+  end
+
+  def assign_person_ids
+    current_id = 0
+
+    @key_graph.each_value do |node|
+      next if node[:person_id]
+
+      node[:person_id] = current_id
+      node[:edges].each do |neighbor|
+        next if @key_graph[neighbor][:person_id]
+
+        update_edges_person_id(neighbor, current_id)
+      end
+      current_id += 1
+    end
+  end
+
+  def write_output
+    [['PersonId'] + @headers] + @rows.map do |i, row|
+      keys = @matcher.get_keys(row)
+      person_id = keys.map { |key| @key_graph[key][:person_id] }.compact.first
+      [person_id] + row.values
+    end
+  end
+
+  def update_edges_person_id(key, current_id)
+    return if key.nil? || @key_graph[key][:person_id]
+
+    @key_graph[key][:person_id] = current_id
+
+    @key_graph[key][:edges].each do |neighbor|
+      update_edges_person_id(neighbor, current_id)
     end
   end
 end

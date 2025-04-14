@@ -5,14 +5,14 @@ class Matcher
     @phone_keys = headers.select { |header| header.downcase.include?('phone') }
   end
 
-  def match?(row1, row2)
+  def get_keys(row)
     case @match_type
     when 'email'
-      match_email(row1, row2)
+      get_keys_by_type(row, @email_keys, 'email')
     when 'phone'
-      match_phone(row1, row2)
+      get_keys_by_type(row, @phone_keys, 'phone')
     when 'email_or_phone'
-      match_email_or_phone(row1, row2)
+      get_keys_by_type(row, @email_keys, 'email') + get_keys_by_type(row, @phone_keys, 'phone')
     else
       raise ArgumentError, "Invalid match type: #{@match_type}"
     end
@@ -20,31 +20,21 @@ class Matcher
 
   private
 
-  def match_email(row1, row2)
-    @email_keys.any? do |key1|
-      @email_keys.any? do |key2|
-        value1 = row1[key1]&.downcase&.strip
-        value2 = row2[key2]&.downcase&.strip
-        value1 == value2 && !value1.nil? && !value2.nil? && value1 != '' && value2 != ''
-      end
-    end
-  end
+  def get_keys_by_type(row, keys, type)
+    return_keys = []
+    keys.each do |key|
+      value = row[key]
+      next if value.nil? || value.strip.empty?
 
-  def match_phone(row1, row2)
-    @phone_keys.any? do |key1|
-      @phone_keys.any? do |key2|
-        value1 = normalize_phone(row1[key1])
-        value2 = normalize_phone(row2[key2])
-        value1 == value2 && !value1.nil? && !value2.nil? && value1 != '' && value2 != ''
-      end
+      return_keys << normalize_phone(value) if type == 'phone'
+      return_keys << value.downcase.strip if type == 'email'
     end
-  end
-
-  def match_email_or_phone(row1, row2)
-    match_email(row1, row2) || match_phone(row1, row2)
+    return_keys
   end
 
   def normalize_phone(phone)
+    return nil if phone.nil? || phone.strip.empty?
+
     digits_only = phone.gsub(/\D/, '') # Remove non-digit characters
     if digits_only.length == 10
       digits_only

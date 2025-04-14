@@ -1,4 +1,5 @@
 require 'csv'
+require_relative './lib/person_grouper'
 
 if ARGV.size < 2
   puts 'Usage: ruby group_people.rb <file_path> <matching_type>'
@@ -27,13 +28,11 @@ Dir.mkdir('./outputs') unless Dir.exist?('./outputs')
 
 puts "Processing file: #{file_path}"
 puts "Matching type: #{matching_type}"
-rows = CSV.read(file_path, headers: true)
-headers = rows.headers
+
+grouper = PersonGrouper.new(file_path, matching_type)
+output = grouper.group_and_output
 
 CSV.open(output_file, 'w') do |csv|
-  csv << ['GroupId'] + headers
-  rows.each_with_index do |row, index|
-    csv << [index] + row.fields
-  end
+  output.each { |row| csv << row }
 end
 puts "Output written to #{output_file}"
