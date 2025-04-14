@@ -27,7 +27,7 @@ class PersonGrouper
   end
 
   def build_key_graph
-    @rows.map do |i, row|
+    @rows.map do |_i, row|
       keys = @matcher.get_keys(row)
       keys.each do |key|
         @key_graph[key] ||= new_node
@@ -70,7 +70,7 @@ class PersonGrouper
   end
 
   def write_output
-    [['PersonId'] + @headers] + @rows.map do |i, row|
+    [['PersonId'] + @headers] + @rows.map do |_i, row|
       keys = @matcher.get_keys(row)
       person_id = keys.map { |key| @key_graph[key][:person_id] }.compact.first
       [person_id] + row.values
